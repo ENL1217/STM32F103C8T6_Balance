@@ -13,5 +13,7 @@ void LineFollow_Forward(void);
 void LineFollow_Left(void);
 void LineFollow_Right(void);
 void LineFollow_Stop(void);
+void LineFollow_Search(void);  // 搜尋模式
+void LineFollow_Uphill(void);  // 爬坡模式
 
 #endif // __LINE_FOLLOW_H__
