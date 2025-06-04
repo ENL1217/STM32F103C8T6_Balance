@@ -28,22 +28,26 @@ void LineFollow_Init(void)
 
 void LineFollow_Forward(void)
 {
-    SetMotorVoltageAndDirection(MOTOR_FORWARD_SPEED, MOTOR_FORWARD_SPEED);
+    BST_fBluetoothSpeed = 20; // 依車體調整，單位與藍芽遙控一致
+    BST_fBluetoothDirectionNew = 0;
 }
 
 void LineFollow_Left(void)
 {
-    SetMotorVoltageAndDirection(-MOTOR_TURN_SPEED, MOTOR_TURN_SPEED);
+    BST_fBluetoothSpeed = 10;
+    BST_fBluetoothDirectionNew = 20; // 正值左轉
 }
 
 void LineFollow_Right(void)
 {
-    SetMotorVoltageAndDirection(MOTOR_TURN_SPEED, -MOTOR_TURN_SPEED);
+    BST_fBluetoothSpeed = 10;
+    BST_fBluetoothDirectionNew = -20; // 負值右轉
 }
 
 void LineFollow_Stop(void)
 {
-    SetMotorVoltageAndDirection(MOTOR_STOP, MOTOR_STOP);
+    BST_fBluetoothSpeed = 0;
+    BST_fBluetoothDirectionNew = 0;
 }
 
 // 主循跡任務，需在主迴圈中定期呼叫
