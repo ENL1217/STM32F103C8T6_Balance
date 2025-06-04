@@ -34,19 +34,26 @@ void LineFollow_Init(void)
 // 自動補償直行動力（遇到阻力自動加大馬達輸出）
 void LineFollow_Forward(void)
 {
-    // 檢查馬達輸出是否長時間偏高，代表遇到阻力
     static int stuck_count = 0;
+    static int boost_count = 0;
     float left_out = BST_fLeftMotorOut;
     float right_out = BST_fRightMotorOut;
     int is_stuck = (left_out > 1500.0f || right_out > 1500.0f || left_out < -1500.0f || right_out < -1500.0f);
+
     if(is_stuck) {
         stuck_count++;
     } else {
         stuck_count = 0;
+        boost_count = 0;
     }
-    if(stuck_count > 10) {
-        // 遇到阻力，臨時提升動力
-        BST_fBluetoothSpeed = 1400; // 臨時大馬力脫困
+
+    if(boost_count > 0) {
+        BST_fBluetoothSpeed = 1200; // 補償期間速度
+        boost_count--;
+    } else if(stuck_count > 20) {
+        BST_fBluetoothSpeed = 1200; // 短暫補償
+        boost_count = 10;           // 只補償10個循環
+        stuck_count = 0;
     } else {
         BST_fBluetoothSpeed = MOTOR_FORWARD_SPEED; // 正常速度 1100
     }
