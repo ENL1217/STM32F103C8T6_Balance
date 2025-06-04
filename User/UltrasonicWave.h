@@ -1,8 +1,8 @@
 #ifndef __UltrasonicWave_H
 #define	__UltrasonicWave_H
 
-void UltrasonicWave_Configuration(void);               //¶Ô³¬Éù²¨Ä£¿é³õÊ¼»¯
-void UltrasonicWave_StartMeasure(void);                //¿ªÊ¼²â¾à£¬·¢ËÍÒ»¸ö>10usµÄÂö³å£¬È»ºó²âÁ¿·µ»ØµÄ¸ßµçÆ½Ê±¼ä
+void UltrasonicWave_Configuration(void);               // è¶…éŸ³æ³¢æ¨¡çµ„åˆå§‹åŒ–
+void UltrasonicWave_StartMeasure(void);                // å•Ÿå‹•æ¸¬è·ï¼ŒTrigè…³>10usé«˜é›»ä½ï¼Œç„¶å¾Œç­‰å¾…å›æ³¢é«˜é›»ä½æ™‚é–“
 
 extern float juli;
 #endif /* __UltrasonicWave_H */

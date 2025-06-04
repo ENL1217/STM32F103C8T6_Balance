@@ -1,5 +1,5 @@
 /******************** (C) COPYRIGHT (2015)BST BALANCECAR **************************
- * ÎÄ¼şÃû  £ºmain.c
+ * ï¿½Ä¼ï¿½ï¿½ï¿½  ï¿½ï¿½main.c
 **********************************************************************************/
 //#include "stm32f10x.h"
 #include "mpu6050.h"
@@ -15,72 +15,74 @@
 #include "timer.h"
 #include "UltrasonicWave.h"
 //#include "stm32f10x_usart.h"
+#include "line_follow.h" // åŠ å…¥å¾ªè·¡æ¨¡çµ„
 
 float gyz;
 int acc;
 int acc1;
 
-/*Ğ­ÒéÏà¹Ø*/
+/*Ğ­ï¿½ï¿½ï¿½ï¿½ï¿½*/
 //extern u8 newLineReceived = 0;
 
 /*
- * º¯ÊıÃû£ºmain
- * ÃèÊö  £ºÖ÷º¯Êı
+ * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½main
+ * ï¿½ï¿½ï¿½ï¿½  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 int main(void)
 {	
        
 	
-	SystemInit();                   //=====ÏµÍ³³õÊ¼»¯
-	Timerx_Init(5000,7199);				   //¶¨Ê±Æ÷TIM1
-	UltrasonicWave_Configuration(); 	   //³¬Éù²¨³õÊ¼»¯ÉèÖÃ IO¿Ú¼°ÖĞ¶ÏÉèÖÃ			    
+	SystemInit();                   //=====ç³»çµ±åˆå§‹åŒ–
+	Timerx_Init(5000,7199);				   //å®šæ™‚å™¨TIM1
+	UltrasonicWave_Configuration(); 	   //è¶…éŸ³æ³¢æ¨¡çµ„åˆå§‹åŒ–ï¼ŒIOä¸­æ–·é…ç½®			    
 
-	USART1_Config();						//´®¿Ú1³õÊ¼»¯ ÉÏÎ»»ú
-	USART3_Config();						//´®¿Ú3³õÊ¼»¯ À¶ÑÀÓëUSART3¹«ÓÃÏàÍ¬IO¿Ú
+	USART1_Config(); // ä¸²å£1åˆå§‹åŒ–ï¼Œè—èŠ½æ¨¡çµ„
+	USART3_Config(); // ä¸²å£3åˆå§‹åŒ–ï¼Œèˆ‡å…¶ä»–è£ç½®å…±ç”¨IO
 
-	TIM2_PWM_Init();					   //PWMÊä³ö³õÊ¼»¯
-	MOTOR_GPIO_Config();				  //µç»úIO¿Ú³õÊ¼»¯
+	TIM2_PWM_Init(); // PWMåˆå§‹åŒ–
+	MOTOR_GPIO_Config(); // é¦¬é”IOåˆå§‹åŒ–
 	LED_GPIO_Config();
 	Adc_Init();
-	//TIM3_External_Clock_CountingMode();	   //×óµç»úÂö³åÊä³öÍâ²¿ÖĞ¶Ï¿ÚPA7Ê¹ÓÃTIM3¶¨Ê±Æ÷ÓÃ×÷ÎªÂö³åÊı¼ÆËã
-	//TIM4_External_Clock_CountingMode();	   //ÓÒµç»úÂö³åÊä³öÍâ²¿ÖĞ¶Ï¿ÚPB7Ê¹ÓÃTIM4¶¨Ê±Æ÷ÓÃ×÷ÎªÂö³åÊı¼ÆËã
-	TIM3_Encoder_Init();                       //±àÂëÆ÷»ñÈ¡Âö³åÊı PA6 7 
-	TIM4_Encoder_Init();                       //±àÂëÆ÷»ñÈ¡Âö³åÊı PB6 7	
+	//TIM3_External_Clock_CountingMode(); // å¤–éƒ¨æ™‚é˜æ¨¡å¼ï¼ŒPA7ç”¨æ–¼TIM3
+	//TIM4_External_Clock_CountingMode(); // å¤–éƒ¨æ™‚é˜æ¨¡å¼ï¼ŒPB7ç”¨æ–¼TIM4
+	TIM3_Encoder_Init(); // ç·¨ç¢¼å™¨è®€å–ï¼ŒPA6/7
+	TIM4_Encoder_Init(); // ç·¨ç¢¼å™¨è®€å–ï¼ŒPB6/7
 	////////////////////DMP/////////////////////////////////
-	i2cInit();							   //IIC³õÊ¼»¯ ÓÃÓÚ¹Ò¿¿ÔÚ×ÜÏßÉÏµÄÉè±¸Ê¹ÓÃ
-	delay_nms(10);						   //ÑÓÊ±10ms
-	MPU6050_Init();						   //MPU6050 DMPÍÓÂİÒÇ³õÊ¼»¯
+	i2cInit(); // IICåˆå§‹åŒ–ï¼Œé€£æ¥æ„Ÿæ¸¬å™¨
+	delay_nms(10); // å»¶é²10ms
+	MPU6050_Init(); // MPU6050 DMPåˆå§‹åŒ–
 
-	SysTick_Init();						  //SysTickº¯Êı³õÊ¼»¯	
-	CarUpstandInit();					  //Ğ¡³µÖ±Á¢²ÎÊı³õÊ¼»¯
-	SysTick->CTRL |=  SysTick_CTRL_ENABLE_Msk;	 //Ê¹ÄÜ×ÜËã·¨Ê±ÖÓ
+	SysTick_Init(); // SysTickå®šæ™‚å™¨åˆå§‹åŒ–
+	CarUpstandInit(); // å¹³è¡¡è»Šåˆå§‹åŒ–
+	SysTick->CTRL |=  SysTick_CTRL_ENABLE_Msk; // å•Ÿç”¨æ¼”ç®—æ³•å®šæ™‚å™¨
+	LineFollow_Init(); // åˆå§‹åŒ–å¾ªè·¡æ„Ÿæ¸¬å™¨
 
 	while (1)
 	{
 
 // 		GPIO_ResetBits(GPIOC, GPIO_Pin_13);
-		MPU6050_Pose();						 //»ñÈ¡MPU6050½Ç¶È×´Ì¬
-// 		gy0=gyro[0];
-// 		UltrasonicWave_StartMeasure();	   //µ÷ÓÃ³¬Éù²¨·¢ËÍ³ÌĞò ¸øTrig½Å <10us ¸ßµçÆ½		 
-// 		chaoshengbo();			       //¼ÆËã³¬Éù²¨²â¾à¾àÀë
-//      	printf("%d",ucBluetoothValue);
-//		printf("\t");
-//		printf("%f",BST_fSpeedControlOutNew);
-//		printf("\t");
-//		printf("%f",BST_fCarAngle);
-//		printf("\t");
-// 		printf("%f",BST_fLeftMotorOut);
-//		printf("\t");
-//		printf("\n");
-		
+		MPU6050_Pose(); // å–å¾—MPU6050è§’åº¦ç‹€æ…‹
+		//gy0=gyro[0];
+		//UltrasonicWave_StartMeasure(); // å•Ÿå‹•è¶…éŸ³æ³¢æ¸¬è·ï¼ŒTrigè…³<10usé«˜é›»ä½
+		//chaoshengbo(); // è¨ˆç®—è¶…éŸ³æ³¢è·é›¢
+		//printf("%d",ucBluetoothValue);
+		//printf("\t");
+		//printf("%f",BST_fSpeedControlOutNew);
+		//printf("\t");
+		//printf("%f",BST_fCarAngle);
+		//printf("\t");
+		//printf("%f",BST_fLeftMotorOut);
+		//printf("\t");
+		//printf("\n");
 		if (newLineReceived)
 		{
 			ProtocolCpyData();
 			Protocol();
 		}
-		/*Í¨¹ı×´Ì¬¿ØÖÆĞ¡³µ*/
-		CarStateOut();		
+		/* ç‹€æ…‹è¼¸å‡ºåˆ°è—èŠ½APP */
+		CarStateOut();
 		SendAutoUp();
+		LineFollow_Task(); // å¾ªè·¡ä¸»ä»»å‹™ï¼Œéœ€å®šæœŸå‘¼å«
 		
 	 }
  								    

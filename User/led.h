@@ -11,11 +11,11 @@
 #define OFF 1
 
 
-//´ø²Îºê£¬¿ÉÒÔÏñÄÚÁªº¯ÊıÒ»ÑùÊ¹ÓÃ
-#define LED1(a)	if (a)	\
-					GPIO_SetBits(GPIOc,GPIO_Pin_13);\
-					else		\
-					GPIO_ResetBits(GPIOc,GPIO_Pin_13)
+// ä»»ä½•æ™‚å€™ï¼Œåªè¦æƒ³è¦é»äº®å°±ç”¨é€™å€‹å·¨é›†
+#define LED1(a) if (a) \
+    GPIO_SetBits(GPIOc,GPIO_Pin_13);\
+    else \
+    GPIO_ResetBits(GPIOc,GPIO_Pin_13)
 
 #define LED2(a)	if (a)	\
 					GPIO_SetBits(GPIOc,GPIO_Pin_4);\

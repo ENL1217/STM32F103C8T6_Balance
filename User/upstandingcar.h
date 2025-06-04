@@ -6,38 +6,38 @@
 #define SEI()      __set_PRIMASK(0) 
 
 
-/**********½Ç¶È¿ØÖÆºê¶¨Òå**********/									
-#define    CAR_ZERO_ANGLE (0)		 //³õÊ¼Ð¡³µ³µÌå½á¹¹µ¼ÖÂÐ¡³µ´æÔÚ´¹Ö±·½Ïò²»ÎªÁã½Ç¶ÈµÄÇé¿ö£¬¹ÌÐèÒªÏû³ý´ËÎó²î£¬Ôö¼ÓÖ±Á¢Îó²î½Ç¶ÈÖµ¡£
+/********** è§’åº¦æŽ§åˆ¶ç›¸é—œå®šç¾© **********/									
+#define    CAR_ZERO_ANGLE (0)         // å°è»Šçµæ§‹åˆå§‹è§’åº¦ï¼Œè»Šé«”ç›´ç«‹æ™‚çš„è§’åº¦åŸºæº–å€¼ï¼Œå¯æ ¹æ“šå¯¦éš›èª¿æ•´
 
-/******ËÙ¶È¿ØÖÆÏà¹Øºê¶¨Òå******/
+/****** é€Ÿåº¦æŽ§åˆ¶ç›¸é—œå®šç¾© ******/
 #define CAR_POSITION_SET      0
 #define CAR_SPEED_SET         0
 #define MOTOR_LEFT_SPEED_POSITIVE  (BST_fLeftMotorOut >0)
 #define MOTOR_RIGHT_SPEED_POSITIVE (BST_fRightMotorOut>0)
-#define OPTICAL_ENCODE_CONSTANT  13	//¹âµçÂëÅÌ¿Ì¶È²Û
-#define SPEED_CONTROL_PERIOD	 40	    //ËÙ¶È»·¿ØÖÆÖÜÆÚ
-#define CAR_SPEED_CONSTANT		(1000.0/(float)SPEED_CONTROL_PERIOD/(float)OPTICAL_ENCODE_CONSTANT)
-// #define CAR_POSITION_MAX	(MOTOR_OUT_MAX*10)//500////20
-// #define CAR_POSITION_MIN	(MOTOR_OUT_MIN*10) //-500//
+#define OPTICAL_ENCODE_CONSTANT  13 // å…‰ç·¨ç¢¼å™¨å¸¸æ•¸
+#define SPEED_CONTROL_PERIOD  40    // é€Ÿåº¦æŽ§åˆ¶é€±æœŸï¼ˆmsï¼‰
+#define CAR_SPEED_CONSTANT    (1000.0/(float)SPEED_CONTROL_PERIOD/(float)OPTICAL_ENCODE_CONSTANT)
+// #define CAR_POSITION_MAX    (MOTOR_OUT_MAX*10)//500////20
+// #define CAR_POSITION_MIN    (MOTOR_OUT_MIN*10) //-500//
 
-#define CAR_POSITION_MAX	3000       //8000
-#define CAR_POSITION_MIN	(-3000)     //-8000
-/******µç»ú¿ØÖÆÏà¹Øºê¶¨Òå******/
-#define MOTOR_OUT_DEAD_VAL       0	   //ËÀÇøÖµ0
-#define MOTOR_OUT_MAX           3000	   //Õ¼¿Õ±ÈÕý×î´óÖµ
-#define MOTOR_OUT_MIN         (-3000)   //Õ¼¿Õ±È¸º×î´óÖµ
+#define CAR_POSITION_MAX  3000       // ä½ç½®æœ€å¤§å€¼
+#define CAR_POSITION_MIN  (-3000)    // ä½ç½®æœ€å°å€¼
+/****** é¦¬é”è¼¸å‡ºç›¸é—œå®šç¾© ******/
+#define MOTOR_OUT_DEAD_VAL       0   // æ­»å€å€¼0
+#define MOTOR_OUT_MAX           3000 // è¼¸å‡ºæœ€å¤§å€¼
+#define MOTOR_OUT_MIN         (-3000) // è¼¸å‡ºæœ€å°å€¼
 
-#define	MOTOR_LEFT_AIN1_LOW			(GPIO_ResetBits(GPIOB, GPIO_Pin_15))  //PB15¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬AIN1Îª¸ºÊ±£¬PB15ÉèÎª0
-#define	MOTOR_LEFT_AIN1_HIGH		(GPIO_SetBits(GPIOB, GPIO_Pin_15))	  //PB15¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬AIN1ÎªÕýÊ±£¬PB15ÉèÎª1
-#define	MOTOR_LEFT_AIN2_LOW			(GPIO_ResetBits(GPIOB, GPIO_Pin_14))  //PB14¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬AIN2Îª¸ºÊ±£¬PB14ÉèÎª0
-#define	MOTOR_LEFT_AIN2_HIGH		(GPIO_SetBits(GPIOB, GPIO_Pin_14))	  //PB14¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬AIN2ÎªÕýÊ±£¬PB14ÉèÎª1
+#define MOTOR_LEFT_AIN1_LOW   (GPIO_ResetBits(GPIOB, GPIO_Pin_15))  // PB15å°æ‡‰é¦¬é”é©…å‹•AIN1ç‚ºä½Žæ™‚PB15ç‚º0
+#define MOTOR_LEFT_AIN1_HIGH  (GPIO_SetBits(GPIOB, GPIO_Pin_15))    // PB15å°æ‡‰é¦¬é”é©…å‹•AIN1ç‚ºé«˜æ™‚PB15ç‚º1
+#define MOTOR_LEFT_AIN2_LOW   (GPIO_ResetBits(GPIOB, GPIO_Pin_14))  // PB14å°æ‡‰é¦¬é”é©…å‹•AIN2ç‚ºä½Žæ™‚PB14ç‚º0
+#define MOTOR_LEFT_AIN2_HIGH  (GPIO_SetBits(GPIOB, GPIO_Pin_14))    // PB14å°æ‡‰é¦¬é”é©…å‹•AIN2ç‚ºé«˜æ™‚PB14ç‚º1
 
-#define	MOTOR_RIGHT_BIN1_LOW			(GPIO_ResetBits(GPIOB, GPIO_Pin_12))//PB12¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬BIN1Îª¸ºÊ±£¬PB12ÉèÎª0
-#define	MOTOR_RIGHT_BIN1_HIGH		(GPIO_SetBits(GPIOB, GPIO_Pin_12))		//PB12¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬BIN1ÎªÕýÊ±£¬PB12ÉèÎª1
-#define	MOTOR_RIGHT_BIN2_LOW			(GPIO_ResetBits(GPIOB, GPIO_Pin_13))//PB13¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬BIN2Îª¸ºÊ±£¬PB13ÉèÎª0
-#define	MOTOR_RIGHT_BIN2_HIGH		(GPIO_SetBits(GPIOB, GPIO_Pin_13))		//PB13¶ÔÓ¦µç»úÇý¶¯Ð¾Æ¬¿ØÖÆ½Å¶¨Òå£¬BIN2ÎªÕýÊ±£¬PB13ÉèÎª1
+#define MOTOR_RIGHT_BIN1_LOW  (GPIO_ResetBits(GPIOB, GPIO_Pin_12))  // PB12å°æ‡‰é¦¬é”é©…å‹•BIN1ç‚ºä½Žæ™‚PB12ç‚º0
+#define MOTOR_RIGHT_BIN1_HIGH (GPIO_SetBits(GPIOB, GPIO_Pin_12))    // PB12å°æ‡‰é¦¬é”é©…å‹•BIN1ç‚ºé«˜æ™‚PB12ç‚º1
+#define MOTOR_RIGHT_BIN2_LOW  (GPIO_ResetBits(GPIOB, GPIO_Pin_13))  // PB13å°æ‡‰é¦¬é”é©…å‹•BIN2ç‚ºä½Žæ™‚PB13ç‚º0
+#define MOTOR_RIGHT_BIN2_HIGH (GPIO_SetBits(GPIOB, GPIO_Pin_13))    // PB13å°æ‡‰é¦¬é”é©…å‹•BIN2ç‚ºé«˜æ™‚PB13ç‚º1
 
-extern float BST_fCarAngle;					//externÖÃÓÚ±äÁ¿»òÕßº¯ÊýÇ°£¬ÒÔ±íÊ¾±äÁ¿»òÕßº¯ÊýµÄ¶¨ÒåÔÚ±ðµÄÎÄ¼þÖÐ£¬ÌáÊ¾±àÒëÆ÷Óöµ½´Ë±äÁ¿»òº¯ÊýÊ±£¬ÔÚÆäËüÄ£¿éÖÐÑ°ÕÒÆä¶¨Òå¡£
+extern float BST_fCarAngle;					//externï¿½ï¿½ï¿½Ú±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ßºï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½Ô±ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ßºï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½Ú±ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½Ð£ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½Ñ°ï¿½ï¿½ï¿½ä¶¨ï¿½å¡£
 extern float BST_fBluetoothSpeed;
 extern float BST_fBluetoothDirectionR;
 extern float BST_fBluetoothDirectionL;
@@ -66,8 +66,8 @@ extern float juli;
 extern 	int x,y1,z1,y2,z2,flagbt;
 extern float BST_fCarSpeed_I,BST_fCarSpeed_P,BST_fCarAngle_P,BST_fCarAngle_D;
 
-extern void CarStateOut(void);   	//×´Ì¬»ú¿ØÖÆ³µ×´Ì¬
-extern void ProtocolCpyData(void); //¸´ÖÆ´®¿ÚÊý¾Ý
+extern void CarStateOut(void);   	//×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½Æ³ï¿½×´Ì¬
+extern void ProtocolCpyData(void); //ï¿½ï¿½ï¿½Æ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 extern void SendAutoUp(void);
 
 
@@ -92,5 +92,5 @@ void kalmanfilter(float Gyro,float Accel);
 void kalmanangle(void);
 
 extern u8 newLineReceived;
-void Protocol(void);  /*Ð­ÒéÏà¹Ø*/
+void Protocol(void);  /*Ð­ï¿½ï¿½ï¿½ï¿½ï¿½*/
 #endif
