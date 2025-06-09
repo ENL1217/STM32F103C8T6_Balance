@@ -2,6 +2,8 @@
 #include "stm32f10x_gpio.h"
 #include "stm32f10x_rcc.h"
 #include "upstandingcar.h"
+#include <stdlib.h>
+#include <math.h>
 
 // 感測器定義：PB0=右感測器，PB1=左感測器
 #define TCRT5000_RIGHT_GPIO_PORT GPIOB
@@ -17,6 +19,11 @@
 #define MOTOR_TURN_SPEED        900     // 統一提升轉彎速度
 #define MOTOR_DIRECTION         450     // 統一提升轉向力度
 #define MOTOR_START_SPEED       700     // 啟動搜尋速度
+
+// --- PID循跡參數 ---
+#define LINE_KP 35.0f
+#define LINE_KI 0.0f
+#define LINE_KD 18.0f
 
 void LineFollow_Init(void)
 {
@@ -111,6 +118,8 @@ void LineFollow_Task(void)
     static int lost_count = 0;
     static int last_action = 0; // 0:前進, 1:左轉, 2:右轉
     static int startup_search_count = 0; // 啟動搜尋計數器
+    static float error_sum = 0;
+    static float last_error = 0;
     const int lost_count_threshold = 15;
     const int startup_search_threshold = 50;
     // 讀取感測器狀態（0=黑線，1=白色）
@@ -118,47 +127,44 @@ void LineFollow_Task(void)
     int right = GPIO_ReadInputDataBit(TCRT5000_RIGHT_GPIO_PORT, TCRT5000_RIGHT_GPIO_PIN);
     int mid = GPIO_ReadInputDataBit(TCRT5000_MID_GPIO_PORT, TCRT5000_MID_GPIO_PIN);
 
-    // 三感測器循跡與爬坡補償（優化判斷）
+    // --- PID循跡 ---
+    // 感測器加權：左(-1)、中(0)、右(+1)，黑線=0、白=1
+    float sensor_value = 0.0f;
+    int sensor_count = 0;
+    if(left == 0) { sensor_value -= 1.0f; sensor_count++; }
+    if(mid == 0)  { sensor_value += 0.0f; sensor_count++; }
+    if(right == 0){ sensor_value += 1.0f; sensor_count++; }
+    // 若都沒偵測到黑線，sensor_count=0，進入搜尋/容錯
+
+    // --- 爬坡補償 ---
     if(mid == 0 && left == 1 && right == 1) {
         // 只有中間感測器在線上，左右都沒偵測到黑線，完全在線上
-        // 啟動爬坡補償
         BST_fBluetoothSpeed = 1350; // 爬坡補償速度
         BST_fBluetoothDirectionNew = 0;
         last_action = 0;
         lost_count = 0;
         startup_search_count = 0;
+        error_sum = 0;
+        last_error = 0;
         return;
-    } else if(mid == 0 && left == 0 && right == 1) {
-        // 左黑中黑右白，偏左，需右修正
-        LineFollow_Right();
-        last_action = 2;
+    }
+
+    // --- PID循跡主體 ---
+    if(sensor_count > 0) {
+        float error = sensor_value / sensor_count;
+        error_sum += error;
+        float d_error = error - last_error;
+        last_error = error;
+        float output = LINE_KP * error + LINE_KI * error_sum + LINE_KD * d_error;
+        // 限制最大轉向
+        if(output > 600) output = 600;
+        if(output < -600) output = -600;
+        BST_fBluetoothSpeed = MOTOR_FORWARD_SPEED;
+        BST_fBluetoothDirectionNew = (int)output;
+        last_action = (output > 0) ? 2 : (output < 0) ? 1 : 0;
         lost_count = 0;
         startup_search_count = 0;
-    } else if(mid == 0 && left == 1 && right == 0) {
-        // 左白中黑右黑，偏右，需左修正
-        LineFollow_Left();
-        last_action = 1;
-        lost_count = 0;
-        startup_search_count = 0;
-    } else if(mid == 1 && left == 0 && right == 1) {
-        // 左黑中白右白，大幅偏左，需大右轉
-        LineFollow_Right();
-        last_action = 2;
-        lost_count = 0;
-        startup_search_count = 0;
-    } else if(mid == 1 && left == 1 && right == 0) {
-        // 左白中白右黑，大幅偏右，需大左轉
-        LineFollow_Left();
-        last_action = 1;
-        lost_count = 0;
-        startup_search_count = 0;
-    } else if(mid == 0 && left == 0 && right == 0) {
-        // 三黑，正在線上，直行
-        LineFollow_Forward();
-        last_action = 0;
-        lost_count = 0;
-        startup_search_count = 0;
-    } else if(mid == 1 && left == 1 && right == 1) {
+    } else if(left == 1 && mid == 1 && right == 1) {
         // 三白，脫線，搜尋/容錯
         if(startup_search_count < startup_search_threshold && last_action == 0) {
             LineFollow_Search(); // 主動前進搜尋黑線
@@ -174,11 +180,15 @@ void LineFollow_Task(void)
                 LineFollow_Stop();
             }
         }
+        error_sum = 0;
+        last_error = 0;
     } else {
         // 其他組合，預設直行
         LineFollow_Forward();
         last_action = 0;
         lost_count = 0;
         startup_search_count = 0;
+        error_sum = 0;
+        last_error = 0;
     }
 }
