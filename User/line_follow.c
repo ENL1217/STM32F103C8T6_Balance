@@ -26,6 +26,27 @@
 #define LINE_KI 0.0f
 #define LINE_KD 18.0f
 
+// --- PID結構體與參數 ---
+typedef struct {
+    float kp;
+    float ki;
+    float kd;
+} PID_t;
+
+static PID_t TurnPID = { .kp = 100, .ki = 0, .kd = -34 };
+static PID_t SpdPID = { .kp = -50, .ki = -6, .kd = 0 };
+
+// 位置式PID（僅用於循跡轉向）
+static int PositionPID(float deviation, PID_t *pid)
+{
+    static float Integral_bias = 0, Last_Bias = 0;
+    float Bias = deviation;
+    Integral_bias += Bias;
+    float Pwm = pid->kp * Bias + pid->ki * Integral_bias + pid->kd * (Bias - Last_Bias);
+    Last_Bias = Bias;
+    return (int)Pwm;
+}
+
 void LineFollow_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
@@ -117,8 +138,6 @@ void LineFollow_Task(void)
     static int lost_count = 0;
     static int last_action = 0;
     static int startup_search_count = 0;
-    static float error_sum = 0;
-    static float last_error = 0;
     static int last_left_pulse = 0;
     static int last_right_pulse = 0;
     const int lost_count_threshold = 15;
@@ -147,25 +166,21 @@ void LineFollow_Task(void)
         last_action = 0;
         lost_count = 0;
         startup_search_count = 0;
-        error_sum = 0;
-        last_error = 0;
         return;
     }
-    // --- ADC PID循跡 ---
+    // --- ADC PID循跡（方向修正：右-左，正值右偏，負值左偏）---
     float left_norm = 1.0f - ((float)(adc_left - ADC_BLACK) / (ADC_WHITE - ADC_BLACK));
     float right_norm = 1.0f - ((float)(adc_right - ADC_BLACK) / (ADC_WHITE - ADC_BLACK));
     if(left_norm < 0) left_norm = 0; if(left_norm > 1) left_norm = 1;
     if(right_norm < 0) right_norm = 0; if(right_norm > 1) right_norm = 1;
-    float error = right_norm - left_norm; // 右大於左，偏右
-    error_sum += error;
-    float d_error = error - last_error;
-    last_error = error;
-    float output = LINE_KP * error + LINE_KI * error_sum + LINE_KD * d_error;
-    if(output > 600) output = 600;
-    if(output < -600) output = -600;
+    float error = left_norm - right_norm; // 修正方向：左-右，正值左偏，負值右偏
+    int turn_pwm = PositionPID(error, &TurnPID);
+    // 限幅
+    if(turn_pwm > 600) turn_pwm = 600;
+    if(turn_pwm < -600) turn_pwm = -600;
     BST_fBluetoothSpeed = MOTOR_FORWARD_SPEED;
-    BST_fBluetoothDirectionNew = (int)output;
-    last_action = (output > 0) ? 2 : (output < 0) ? 1 : 0;
+    BST_fBluetoothDirectionNew = turn_pwm;
+    last_action = (turn_pwm > 0) ? 1 : (turn_pwm < 0) ? 2 : 0;
     lost_count = 0;
     startup_search_count = 0;
     // --- 三白搜尋 ---
@@ -184,7 +199,5 @@ void LineFollow_Task(void)
                 LineFollow_Stop();
             }
         }
-        error_sum = 0;
-        last_error = 0;
     }
 }
