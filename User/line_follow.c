@@ -127,18 +127,8 @@ void LineFollow_Task(void)
     int right = GPIO_ReadInputDataBit(TCRT5000_RIGHT_GPIO_PORT, TCRT5000_RIGHT_GPIO_PIN);
     int mid = GPIO_ReadInputDataBit(TCRT5000_MID_GPIO_PORT, TCRT5000_MID_GPIO_PIN);
 
-    // --- PID循跡 ---
-    // 感測器加權：左(-1)、中(0)、右(+1)，黑線=0、白=1
-    float sensor_value = 0.0f;
-    int sensor_count = 0;
-    if(left == 0) { sensor_value -= 1.0f; sensor_count++; }
-    if(mid == 0)  { sensor_value += 0.0f; sensor_count++; }
-    if(right == 0){ sensor_value += 1.0f; sensor_count++; }
-    // 若都沒偵測到黑線，sensor_count=0，進入搜尋/容錯
-
     // --- 爬坡補償 ---
     if(mid == 0 && left == 1 && right == 1) {
-        // 只有中間感測器在線上，左右都沒偵測到黑線，完全在線上
         BST_fBluetoothSpeed = 1350; // 爬坡補償速度
         BST_fBluetoothDirectionNew = 0;
         last_action = 0;
@@ -149,14 +139,24 @@ void LineFollow_Task(void)
         return;
     }
 
+    // --- 三感測器權重表 ---
+    float error = 0;
+    int valid = 1;
+    if(left == 0 && mid == 1 && right == 1)      error = -2.0f; // 左黑大偏左
+    else if(left == 0 && mid == 0 && right == 1) error = -1.0f; // 左黑中黑偏左
+    else if(left == 1 && mid == 0 && right == 1) error = 0.0f;  // 只中黑，正中
+    else if(left == 1 && mid == 0 && right == 0) error = 1.0f;  // 右黑中黑偏右
+    else if(left == 1 && mid == 1 && right == 0) error = 2.0f;  // 右黑大偏右
+    else if(left == 0 && mid == 0 && right == 0) error = 0.0f;  // 三黑，正中
+    else if(left == 1 && mid == 1 && right == 1) valid = 0;      // 三白，脫線
+    else valid = 0; // 其他組合視為脫線
+
     // --- PID循跡主體 ---
-    if(sensor_count > 0) {
-        float error = sensor_value / sensor_count;
+    if(valid) {
         error_sum += error;
         float d_error = error - last_error;
         last_error = error;
         float output = LINE_KP * error + LINE_KI * error_sum + LINE_KD * d_error;
-        // 限制最大轉向
         if(output > 600) output = 600;
         if(output < -600) output = -600;
         BST_fBluetoothSpeed = MOTOR_FORWARD_SPEED;
@@ -167,7 +167,7 @@ void LineFollow_Task(void)
     } else if(left == 1 && mid == 1 && right == 1) {
         // 三白，脫線，搜尋/容錯
         if(startup_search_count < startup_search_threshold && last_action == 0) {
-            LineFollow_Search(); // 主動前進搜尋黑線
+            LineFollow_Search();
             startup_search_count++;
             lost_count = 0;
         } else {
