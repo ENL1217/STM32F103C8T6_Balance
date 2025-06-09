@@ -2,6 +2,7 @@
 #include "stm32f10x_gpio.h"
 #include "stm32f10x_rcc.h"
 #include "upstandingcar.h"
+#include "adc.h" // 假設你有adc初始化與讀值函式
 #include <stdlib.h>
 #include <math.h>
 
@@ -29,19 +30,17 @@ void LineFollow_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-    
-    // 初始化右感測器（PB0）
-    GPIO_InitStructure.GPIO_Pin = TCRT5000_RIGHT_GPIO_PIN;
+
+    // 初始化PB0/PB1為類比輸入
+    GPIO_InitStructure.GPIO_Pin = TCRT5000_RIGHT_GPIO_PIN | TCRT5000_LEFT_GPIO_PIN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN; // 類比輸入
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    // 初始化中間感測器（PB10）為數位輸入
+    GPIO_InitStructure.GPIO_Pin = TCRT5000_MID_GPIO_PIN;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU; // 上拉輸入
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(TCRT5000_RIGHT_GPIO_PORT, &GPIO_InitStructure);
-    
-    // 初始化左感測器（PB1）
-    GPIO_InitStructure.GPIO_Pin = TCRT5000_LEFT_GPIO_PIN;
-    GPIO_Init(TCRT5000_LEFT_GPIO_PORT, &GPIO_InitStructure);
-    
-    // 初始化中間感測器（PB10）
-    GPIO_InitStructure.GPIO_Pin = TCRT5000_MID_GPIO_PIN;
     GPIO_Init(TCRT5000_MID_GPIO_PORT, &GPIO_InitStructure);
 }
 
@@ -116,20 +115,34 @@ void LineFollow_Search(void)
 void LineFollow_Task(void)
 {
     static int lost_count = 0;
-    static int last_action = 0; // 0:前進, 1:左轉, 2:右轉
-    static int startup_search_count = 0; // 啟動搜尋計數器
+    static int last_action = 0;
+    static int startup_search_count = 0;
     static float error_sum = 0;
     static float last_error = 0;
+    static int last_left_pulse = 0;
+    static int last_right_pulse = 0;
     const int lost_count_threshold = 15;
     const int startup_search_threshold = 50;
-    // 讀取感測器狀態（0=黑線，1=白色）
-    int left = GPIO_ReadInputDataBit(TCRT5000_LEFT_GPIO_PORT, TCRT5000_LEFT_GPIO_PIN);
-    int right = GPIO_ReadInputDataBit(TCRT5000_RIGHT_GPIO_PORT, TCRT5000_RIGHT_GPIO_PIN);
+    // 讀取ADC與中間感測器
+    uint16_t adc_left = Get_Adc(9);  // PB1 = ADC1_IN9
+    uint16_t adc_right = Get_Adc(8); // PB0 = ADC1_IN8
     int mid = GPIO_ReadInputDataBit(TCRT5000_MID_GPIO_PORT, TCRT5000_MID_GPIO_PIN);
-
+    // 黑白閾值
+    const uint16_t ADC_BLACK = 1500;
+    const uint16_t ADC_WHITE = 2500;
     // --- 爬坡補償 ---
-    if(mid == 0 && left == 1 && right == 1) {
-        BST_fBluetoothSpeed = 1350; // 爬坡補償速度
+    int left_is_white = (adc_left > ADC_WHITE);
+    int right_is_white = (adc_right > ADC_WHITE);
+    int left_pulse = BST_s16LeftMotorPulse;
+    int right_pulse = BST_s16RightMotorPulse;
+    int left_pulse_delta = abs(left_pulse - last_left_pulse);
+    int right_pulse_delta = abs(right_pulse - last_right_pulse);
+    last_left_pulse = left_pulse;
+    last_right_pulse = right_pulse;
+    int stuck = (left_pulse_delta < 2 && right_pulse_delta < 2);
+    if(mid == 0 && left_is_white && right_is_white && stuck) {
+        // 中間黑、左右白且馬達沒動，啟動爬坡補償
+        BST_fBluetoothSpeed = 1350;
         BST_fBluetoothDirectionNew = 0;
         last_action = 0;
         lost_count = 0;
@@ -138,34 +151,25 @@ void LineFollow_Task(void)
         last_error = 0;
         return;
     }
-
-    // --- 三感測器權重表 ---
-    float error = 0;
-    int valid = 1;
-    if(left == 0 && mid == 1 && right == 1)      error = -2.0f; // 左黑大偏左
-    else if(left == 0 && mid == 0 && right == 1) error = -1.0f; // 左黑中黑偏左
-    else if(left == 1 && mid == 0 && right == 1) error = 0.0f;  // 只中黑，正中
-    else if(left == 1 && mid == 0 && right == 0) error = 1.0f;  // 右黑中黑偏右
-    else if(left == 1 && mid == 1 && right == 0) error = 2.0f;  // 右黑大偏右
-    else if(left == 0 && mid == 0 && right == 0) error = 0.0f;  // 三黑，正中
-    else if(left == 1 && mid == 1 && right == 1) valid = 0;      // 三白，脫線
-    else valid = 0; // 其他組合視為脫線
-
-    // --- PID循跡主體 ---
-    if(valid) {
-        error_sum += error;
-        float d_error = error - last_error;
-        last_error = error;
-        float output = LINE_KP * error + LINE_KI * error_sum + LINE_KD * d_error;
-        if(output > 600) output = 600;
-        if(output < -600) output = -600;
-        BST_fBluetoothSpeed = MOTOR_FORWARD_SPEED;
-        BST_fBluetoothDirectionNew = (int)output;
-        last_action = (output > 0) ? 2 : (output < 0) ? 1 : 0;
-        lost_count = 0;
-        startup_search_count = 0;
-    } else if(left == 1 && mid == 1 && right == 1) {
-        // 三白，脫線，搜尋/容錯
+    // --- ADC PID循跡 ---
+    float left_norm = 1.0f - ((float)(adc_left - ADC_BLACK) / (ADC_WHITE - ADC_BLACK));
+    float right_norm = 1.0f - ((float)(adc_right - ADC_BLACK) / (ADC_WHITE - ADC_BLACK));
+    if(left_norm < 0) left_norm = 0; if(left_norm > 1) left_norm = 1;
+    if(right_norm < 0) right_norm = 0; if(right_norm > 1) right_norm = 1;
+    float error = right_norm - left_norm; // 右大於左，偏右
+    error_sum += error;
+    float d_error = error - last_error;
+    last_error = error;
+    float output = LINE_KP * error + LINE_KI * error_sum + LINE_KD * d_error;
+    if(output > 600) output = 600;
+    if(output < -600) output = -600;
+    BST_fBluetoothSpeed = MOTOR_FORWARD_SPEED;
+    BST_fBluetoothDirectionNew = (int)output;
+    last_action = (output > 0) ? 2 : (output < 0) ? 1 : 0;
+    lost_count = 0;
+    startup_search_count = 0;
+    // --- 三白搜尋 ---
+    if(adc_left > ADC_WHITE && adc_right > ADC_WHITE && mid == 1) {
         if(startup_search_count < startup_search_threshold && last_action == 0) {
             LineFollow_Search();
             startup_search_count++;
@@ -180,14 +184,6 @@ void LineFollow_Task(void)
                 LineFollow_Stop();
             }
         }
-        error_sum = 0;
-        last_error = 0;
-    } else {
-        // 其他組合，預設直行
-        LineFollow_Forward();
-        last_action = 0;
-        lost_count = 0;
-        startup_search_count = 0;
         error_sum = 0;
         last_error = 0;
     }
