@@ -8,6 +8,9 @@
 #define TCRT5000_RIGHT_GPIO_PIN  GPIO_Pin_0
 #define TCRT5000_LEFT_GPIO_PORT  GPIOB
 #define TCRT5000_LEFT_GPIO_PIN   GPIO_Pin_1
+// 新增：中間感測器定義（PB10）
+#define TCRT5000_MID_GPIO_PORT GPIOB
+#define TCRT5000_MID_GPIO_PIN  GPIO_Pin_10
 
 // 馬達速度參數（針對循跡優化，統一提升動力）
 #define MOTOR_FORWARD_SPEED     1100    // 統一提升前進速度
@@ -29,16 +32,33 @@ void LineFollow_Init(void)
     // 初始化左感測器（PB1）
     GPIO_InitStructure.GPIO_Pin = TCRT5000_LEFT_GPIO_PIN;
     GPIO_Init(TCRT5000_LEFT_GPIO_PORT, &GPIO_InitStructure);
+    
+    // 初始化中間感測器（PB10）
+    GPIO_InitStructure.GPIO_Pin = TCRT5000_MID_GPIO_PIN;
+    GPIO_Init(TCRT5000_MID_GPIO_PORT, &GPIO_InitStructure);
 }
 
 // 自動補償直行動力（遇到阻力自動加大馬達輸出）
 void LineFollow_Forward(void)
 {
+    // --- 卡住判斷與自動補償 ---
     static int stuck_count = 0;
     static int boost_count = 0;
+    static int last_left_pulse = 0;
+    static int last_right_pulse = 0;
+    int left_pulse = BST_s16LeftMotorPulse;
+    int right_pulse = BST_s16RightMotorPulse;
     float left_out = BST_fLeftMotorOut;
     float right_out = BST_fRightMotorOut;
-    int is_stuck = (left_out > 1500.0f || right_out > 1500.0f || left_out < -1500.0f || right_out < -1500.0f);
+    int left_pulse_delta = abs(left_pulse - last_left_pulse);
+    int right_pulse_delta = abs(right_pulse - last_right_pulse);
+    last_left_pulse = left_pulse;
+    last_right_pulse = right_pulse;
+
+    // 判斷PWM大且脈衝變化小才算卡住
+    int pwm_stuck = (fabs(left_out) > 1400.0f || fabs(right_out) > 1400.0f);
+    int pulse_stuck = (left_pulse_delta < 2 && right_pulse_delta < 2);
+    int is_stuck = (pwm_stuck && pulse_stuck);
 
     if(is_stuck) {
         stuck_count++;
@@ -50,9 +70,9 @@ void LineFollow_Forward(void)
     if(boost_count > 0) {
         BST_fBluetoothSpeed = 1200; // 補償期間速度
         boost_count--;
-    } else if(stuck_count > 20) {
+    } else if(stuck_count > 8) { // 連續判斷卡住才補償，避免誤觸
         BST_fBluetoothSpeed = 1200; // 短暫補償
-        boost_count = 10;           // 只補償10個循環
+        boost_count = 8;           // 只補償8個循環
         stuck_count = 0;
     } else {
         BST_fBluetoothSpeed = MOTOR_FORWARD_SPEED; // 正常速度 1100
@@ -91,58 +111,74 @@ void LineFollow_Task(void)
     static int lost_count = 0;
     static int last_action = 0; // 0:前進, 1:左轉, 2:右轉
     static int startup_search_count = 0; // 啟動搜尋計數器
-    const int lost_count_threshold = 15; // 增加斷線容錯次數
-    const int startup_search_threshold = 50; // 縮短啟動搜尋時間
-    
-    // 讀取感測器狀態（0=檢測到黑線，1=檢測到白色）
+    const int lost_count_threshold = 15;
+    const int startup_search_threshold = 50;
+    // 讀取感測器狀態（0=黑線，1=白色）
     int left = GPIO_ReadInputDataBit(TCRT5000_LEFT_GPIO_PORT, TCRT5000_LEFT_GPIO_PIN);
     int right = GPIO_ReadInputDataBit(TCRT5000_RIGHT_GPIO_PORT, TCRT5000_RIGHT_GPIO_PIN);
-    
-    // 雙感測器循跡邏輯（已修正方向定義）
-    // 根據馬達控制邏輯：BST_fBluetoothDirectionNew正值=右轉，負值=左轉
-    // 左黑右白(0,1) -> 車子偏左，需要右轉修正
-    // 左白右黑(1,0) -> 車子偏右，需要左轉修正
-    // 左黑右黑(0,0) -> 在線上，直行
-    // 左白右白(1,1) -> 脫線，容錯處理
-    
-    if(left == 0 && right == 1) {
-        // 左感測器檢測到黑線，右感測器沒有 -> 車子偏左，需要右轉修正
+    int mid = GPIO_ReadInputDataBit(TCRT5000_MID_GPIO_PORT, TCRT5000_MID_GPIO_PIN);
+
+    // 三感測器循跡與爬坡補償（優化判斷）
+    if(mid == 0 && left == 1 && right == 1) {
+        // 只有中間感測器在線上，左右都沒偵測到黑線，完全在線上
+        // 啟動爬坡補償
+        BST_fBluetoothSpeed = 1350; // 爬坡補償速度
+        BST_fBluetoothDirectionNew = 0;
+        last_action = 0;
+        lost_count = 0;
+        startup_search_count = 0;
+        return;
+    } else if(mid == 0 && left == 0 && right == 1) {
+        // 左黑中黑右白，偏左，需右修正
         LineFollow_Right();
         last_action = 2;
         lost_count = 0;
-        startup_search_count = 0; // 找到線，停止搜尋
-    } else if(left == 1 && right == 0) {
-        // 右感測器檢測到黑線，左感測器沒有 -> 車子偏右，需要左轉修正
+        startup_search_count = 0;
+    } else if(mid == 0 && left == 1 && right == 0) {
+        // 左白中黑右黑，偏右，需左修正
         LineFollow_Left();
         last_action = 1;
         lost_count = 0;
-        startup_search_count = 0; // 找到線，停止搜尋
-    } else if(left == 0 && right == 0) {
-        // 兩個感測器都檢測到黑線 -> 正在線上或線很寬，直行
-        LineFollow_Forward(); // 統一使用提升後的前進速度
+        startup_search_count = 0;
+    } else if(mid == 1 && left == 0 && right == 1) {
+        // 左黑中白右白，大幅偏左，需大右轉
+        LineFollow_Right();
+        last_action = 2;
+        lost_count = 0;
+        startup_search_count = 0;
+    } else if(mid == 1 && left == 1 && right == 0) {
+        // 左白中白右黑，大幅偏右，需大左轉
+        LineFollow_Left();
+        last_action = 1;
+        lost_count = 0;
+        startup_search_count = 0;
+    } else if(mid == 0 && left == 0 && right == 0) {
+        // 三黑，正在線上，直行
+        LineFollow_Forward();
         last_action = 0;
         lost_count = 0;
-        startup_search_count = 0; // 找到線，停止搜尋
-    } else if(left == 1 && right == 1) {
-        // 兩個感測器都沒檢測到黑線 -> 脫線或初始狀態
-        
-        // 啟動搜尋：如果是剛開始且還沒找到線，主動搜尋
+        startup_search_count = 0;
+    } else if(mid == 1 && left == 1 && right == 1) {
+        // 三白，脫線，搜尋/容錯
         if(startup_search_count < startup_search_threshold && last_action == 0) {
             LineFollow_Search(); // 主動前進搜尋黑線
             startup_search_count++;
             lost_count = 0;
         } else {
-            // 正常脫線處理
             lost_count++;
             if(lost_count < lost_count_threshold) {
-                // 維持前一動作，提升響應性
                 if(last_action == 1) LineFollow_Left();
                 else if(last_action == 2) LineFollow_Right();
-                else LineFollow_Search(); // 如果沒有前一動作，繼續搜尋
+                else LineFollow_Search();
             } else {
-                // 脫線太久，停止
                 LineFollow_Stop();
             }
         }
+    } else {
+        // 其他組合，預設直行
+        LineFollow_Forward();
+        last_action = 0;
+        lost_count = 0;
+        startup_search_count = 0;
     }
 }
